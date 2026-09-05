@@ -207,7 +207,13 @@ def run_decision(
     living: LivingCostPath | None = None,
 ) -> DecisionResult:
     H = horizon or state.assumptions.horizon_months
-    path = path or Path.flat(H)
+    if path is None:
+        # 기본 경로는 '성장 0'이 아니라 BASE 시나리오다. 포트폴리오 수익률을
+        # 0으로 두면 현금을 쥐는 옵션(전세)이 부당하게 불리해진다.
+        from fde.scenario import deterministic_scenarios, scenario_path
+
+        base = deterministic_scenarios(state.assumptions)[0]
+        path = scenario_path(base, state.assumptions, H)
     living = living or build_living_cost_path(state, policy, H)
 
     T = max(0, min(state.months_to_expiry(), H - 1))

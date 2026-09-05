@@ -64,9 +64,14 @@ class Path:
     portfolio: list[float]    # 월 실현수익률
 
     @staticmethod
-    def flat(n: int) -> "Path":
+    def flat(n: int, monthly_portfolio_return: float = 0.0) -> "Path":
+        """성장이 전혀 없는 경로. 테스트용이며 실제 비교에는 쓰지 말 것.
+
+        포트폴리오 수익률을 0으로 두면 현금을 쥐는 옵션이 부당하게 불리해지므로
+        run_decision 은 이 대신 BASE 시나리오 경로를 쓴다.
+        """
         return Path([1.0] * (n + 1), [1.0] * (n + 1), [0.0] * (n + 1),
-                    [1.0] * (n + 1), [0.0] * (n + 1))
+                    [1.0] * (n + 1), [monthly_portfolio_return] * (n + 1))
 
 
 @dataclass
