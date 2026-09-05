@@ -1,0 +1,222 @@
+# 가족 상태 - 이 시스템의 유일한 진실 원천
+# =============================================================================
+# 사용법:
+#   cp config/family_state.example.yaml config/family_state.yaml
+#   그리고 아래 값을 실제 값으로 채우세요. (실제 파일은 .gitignore 됩니다)
+#
+# 금액 단위는 전부 **원**입니다. 5억 = 500000000
+# 비율은 소수입니다. 3% = 0.03
+#
+# 아래 숫자는 전부 예시입니다. 구조를 보여주기 위한 것이지 권장값이 아닙니다.
+# =============================================================================
+
+as_of: 2026-09-05
+
+family:
+  adults:
+    - name: 본인
+      monthly_net_income: 5500000     # 세후 월 실수령
+      annual_bonus: 12000000
+      income_growth: 0.04
+      stability: high                 # high | medium | low
+      work_location: "강남구"
+    - name: 배우자
+      monthly_net_income: 3800000
+      annual_bonus: 4000000
+      income_growth: 0.03
+      stability: medium
+      work_location: "여의도"
+      parental_leave_months_remaining: 0
+      leave_income_ratio: 0.5
+
+  children:
+    - name: 첫째
+      birth_date: 2024-12-01          # 만 21개월 기준
+
+  # 둘째 계획은 예산·주거면적·시간축을 전부 바꿉니다. 확률로 넣으세요.
+  second_child_probability: 0.4
+  second_child_expected_date: 2028-06-01
+
+# ----------------------------------------------------------------- 자산
+# liquidity: 0=즉시현금 1=수일 2=수주 3=사실상인출불가(연금 등)
+# volatility: 연 표준편차. 글라이드패스가 이 값으로 현금화 우선순위를 정합니다.
+assets:
+  - name: 입출금/파킹통장
+    amount: 30000000
+    expected_return: 0.028
+    volatility: 0.0
+    liquidity: 0
+  - name: 예적금
+    amount: 40000000
+    expected_return: 0.032
+    volatility: 0.0
+    liquidity: 1
+  - name: 국내외 ETF
+    amount: 60000000
+    expected_return: 0.065
+    volatility: 0.16
+    liquidity: 1
+    taxable_gain_ratio: 0.2
+  - name: BTC
+    amount: 15000000
+    expected_return: 0.10
+    volatility: 0.60          # 이 변동성이 전세 만기와 만나면 사고가 납니다
+    liquidity: 1
+    taxable_gain_ratio: 0.3
+  - name: 퇴직연금/IRP
+    amount: 45000000
+    expected_return: 0.05
+    volatility: 0.10
+    liquidity: 3              # 주거자금으로 못 씁니다. 순자산엔 잡히지만 유동성 0.
+
+# ----------------------------------------------------------------- 부채
+debts:
+  - name: 전세자금대출
+    balance: 150000000
+    annual_rate: 0.038
+    term_months: 24
+    kind: bullet              # 전세대출은 보통 만기일시(이자만 납부)
+    is_jeonse_loan: true
+    counts_in_dsr: true       # 이자분이 DSR 에 잡히는지는 정책에서 결정
+
+# ----------------------------------------------------------------- 현재 주거
+housing:
+  kind: jeonse
+  deposit: 450000000
+  monthly_rent: 0
+  monthly_maintenance: 180000
+  contract_start: 2025-03-15
+  contract_end: 2027-03-14          # 이 날짜가 시스템 전체의 시간축 원점입니다
+  renewal_right_used: false         # ★ 이 한 줄이 결론을 뒤집습니다. 정확히 적으세요.
+  address: "성남시 분당구"
+  area_pyeong: 24
+
+  # ★★★ 이 블록이 이 시스템에서 기대손실이 가장 큰 항목입니다 (수억 원 규모).
+  # 등기부등본 1통 + HUG 가입 여부 확인 = 30분. 코드보다 먼저 하세요.
+  risk:
+    market_jeonse_now: 470000000    # 현재 시세 전세가. 내 보증금보다 낮으면 역전세.
+    property_value: 720000000       # 임차 주택 시세
+    senior_debt: 0                  # 등기부상 선순위 근저당. 반드시 확인.
+    hug_guaranteed: false           # ← 미가입이면 가장 먼저 해결할 항목
+    landlord_type: individual       # individual | corporation | multi_owner | unknown
+    registry_checked_on: null       # null 이면 엔진이 [중대] 경고를 냅니다
+    confirmed_date_secured: true    # 확정일자 + 전입신고 완료 여부
+
+# ----------------------------------------------------------------- 후보지
+# 최소 3곳. 현재 거주지도 후보로 넣으면 '전세 유지' 옵션이 정확해집니다.
+candidates:
+  - name: 현재집-갱신
+    area: "성남시 분당구"
+    price_buy: 720000000
+    price_jeonse: 470000000
+    wolse_deposit: 200000000
+    wolse_monthly: 1300000
+    monthly_maintenance: 180000
+    commute_minutes: { 본인: 45, 배우자: 55 }   # 편도 분
+    daycare_minutes: 8
+    school_score: 0.75
+    satisfaction_score: 0.70
+    grandparents_minutes: 40
+    is_regulated_area: false
+
+  - name: 직주근접-A
+    area: "서울 송파구"
+    price_buy: 980000000
+    price_jeonse: 560000000
+    wolse_deposit: 250000000
+    wolse_monthly: 1700000
+    monthly_maintenance: 250000
+    commute_minutes: { 본인: 25, 배우자: 40 }
+    daycare_minutes: 10
+    school_score: 0.80
+    satisfaction_score: 0.75
+    grandparents_minutes: 55
+    is_regulated_area: true
+
+  - name: 넓은집-B
+    area: "경기 용인시"
+    price_buy: 620000000
+    price_jeonse: 400000000
+    wolse_deposit: 150000000
+    wolse_monthly: 1100000
+    monthly_maintenance: 160000
+    commute_minutes: { 본인: 70, 배우자: 80 }   # max_commute_minutes 초과 시 하드 탈락
+    daycare_minutes: 12
+    school_score: 0.60
+    satisfaction_score: 0.65
+    grandparents_minutes: 70
+    is_regulated_area: false
+
+# ----------------------------------------------------------------- 선호 (부부 합의용)
+# 가중치("육아 25%")를 지어내지 않습니다. 대신 답할 수 있는 질문으로 받습니다.
+#   `python -m fde tradeoffs` 를 실행하면 질문지가 나옵니다.
+#   배우자와 같이 답하고 그 결과를 여기 적으세요. 그러면 다음에 다시 안 싸웁니다.
+preferences:
+  # 예) "편도 20분 단축에 월 25만원 낼 의향이 있다" -> 250000/20 = 12500
+  krw_per_commute_minute_month: 12500
+  krw_per_daycare_minute_month: 8000
+  krw_per_grandparent_minute_month: 1500
+
+  # school_score 0 -> 1 의 월 지불의사 차이
+  school_quality_wtp_monthly: 300000
+  satisfaction_wtp_monthly: 200000
+
+  # --- 하드 제약 (점수화하지 않고 탈락시킵니다) ---
+  max_commute_minutes: 60
+  max_housing_burden_ratio: 0.30     # (이자+월세+세금+관리비)/가처분소득. 원금 제외.
+  max_total_payment_ratio: 0.40      # 원금 포함
+  min_emergency_months: 6
+  max_forced_move_probability: 0.05
+  max_liquidity_breach_probability: 0.05
+
+  answered_on: null                  # null 이면 엔진이 경고합니다
+  answered_by: ""
+
+# ----------------------------------------------------------------- 예산 (UC-07)
+# 유일한 고빈도 유스케이스. 2년 뒤 자산을 결정하는 최대 단일 변수는
+# 집값 예측이 아니라 저축률입니다. 저축률은 100% 통제 가능합니다.
+budget:
+  fixed_monthly: 900000        # 보험/통신/구독/교통
+  variable_monthly: 2200000    # 식비/생활
+  childcare_monthly: 700000    # 현재 육아비 (계단 곡선은 엔진이 자동 생성)
+  other_monthly: 400000
+  target_savings_rate: null    # null 이면 엔진이 역산해서 제안합니다
+
+# ----------------------------------------------------------------- 가정
+assumptions:
+  horizon_months: 132          # 11년. 첫째 중학교 배정까지 보려면 늘리세요.
+  inflation: 0.022
+  discount_rate: 0.030
+
+  house_price_growth: 0.020    # ★ 예측하지 마세요. sensitivity 가 임계값을 찾아줍니다.
+  jeonse_price_growth: 0.030
+  wolse_growth: 0.020
+  mortgage_rate: 0.042
+  jeonse_loan_rate: 0.038
+  deposit_rate: 0.030
+  portfolio_return: 0.050
+  portfolio_volatility: 0.120
+
+  income_growth: 0.030
+  living_cost_growth: 0.025
+
+  house_price_volatility: 0.090
+  jeonse_price_volatility: 0.070
+  rate_volatility: 0.010
+  penalty_borrow_rate: 0.090
+
+  # 상관계수 - 금리↑ + 자산가격↓ + 소득충격은 따로 오지 않고 같이 옵니다.
+  # 독립 시나리오로 돌리면 진짜 위험한 꼬리를 못 봅니다.
+  corr_house_jeonse: 0.55
+  corr_house_rate: -0.35
+  corr_jeonse_rate: -0.15
+  corr_house_income: 0.25
+
+# ----------------------------------------------------------------- 은행 사전조회
+# ★ 자체 DSR/LTV 계산은 거의 확실히 틀립니다(은행별 가산금리·심사 상이).
+#   은행 3곳 사전조회 결과를 여기 넣으면 엔진이 자체 추정 대신 이 값을 씁니다.
+bank_quotes: {}
+#   max_mortgage: 300000000
+#   max_jeonse_loan: 200000000
+#   quoted_mortgage_rate: 0.041
+#   quoted_on: 2026-09-01

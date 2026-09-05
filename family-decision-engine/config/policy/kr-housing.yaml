@@ -1,0 +1,289 @@
+# 한국 주거/세제/대출 정책 룰셋
+# =============================================================================
+# 이 파일의 모든 숫자는 **당신이 직접 확인해서 교체해야 하는 값**입니다.
+#
+#   confidence: placeholder  -> 구조를 보여주기 위한 예시값. 절대 그대로 쓰지 마세요.
+#   confidence: unverified   -> 구조와 항목은 맞지만 현재 유효성 미확인.
+#   confidence: verified     -> 당신이 출처를 직접 확인함. verified_on 을 반드시 기록.
+#
+# 엔진은 placeholder 값이 결과에 실제로 영향을 준 경우 리포트 최상단에 경고를 냅니다.
+# `python -m fde policy-check` 로 교체해야 할 항목 목록을 볼 수 있습니다.
+#
+# 왜 이렇게 만들었나:
+#   LTV/DSR/취득세/특례대출 요건은 수시로 바뀝니다. 이걸 파이썬 코드에 하드코딩하면
+#   6개월 뒤 조용히 틀린 답을 냅니다. 틀린 답보다 나쁜 건 "확신에 찬 틀린 답"입니다.
+# =============================================================================
+
+_defaults:
+  effective_from: 2026-01-01
+  confidence: placeholder
+  source: ""
+
+# ----------------------------------------------------------------- 임대차 3법
+# 출처: 주택임대차보호법. 비교적 안정적인 법령이지만 시행 시점/예외를 확인하세요.
+lease:
+  renewal_right_count:
+    value: 1
+    confidence: unverified
+    source: "주택임대차보호법 - 계약갱신요구권"
+    note: "임차인이 행사할 수 있는 갱신요구 횟수"
+
+  renewal_cap_rate:
+    value: 0.05
+    confidence: unverified
+    source: "주택임대차보호법 - 전월세상한제"
+    note: "갱신 시 차임/보증금 증액 상한. 갱신요구권 행사 시에만 적용."
+
+  renewal_notice_window_months:
+    value: [6, 2]
+    confidence: unverified
+    source: "주택임대차보호법 - 갱신요구 통지기한"
+    note: >
+      만기 몇 개월 전부터 몇 개월 전까지 갱신을 요구해야 하는가.
+      [시작, 마감]. 이 창을 놓치면 갱신요구권이 소멸합니다.
+      계약 체결 시점에 따라 마감이 1개월 전인 경우가 있으니 본인 계약서로 확인하세요.
+
+  min_term_months:
+    value: 24
+    confidence: unverified
+    source: "주택임대차보호법 - 최단 존속기간"
+
+  conversion_rate:
+    value: 0.055
+    confidence: placeholder
+    note: >
+      전월세전환율. 법정 상한(기준금리 연동)과 시장 실제 전환율이 다릅니다.
+      반전세 옵션 계산에 직접 쓰이므로 해당 지역 실제 시세로 교체하세요.
+
+# ----------------------------------------------------------------- 대출 규제
+# LTV/DSR 은 규제지역 지정과 정책 변경에 따라 자주 바뀝니다.
+# **가능하면 이 값을 쓰지 말고 은행 사전조회 결과를 family_state.yaml 에 직접 넣으세요.**
+# (loan.py 는 은행 조회값이 있으면 그것을 우선합니다.)
+loan:
+  ltv:
+    regulated:
+      value: 0.50
+      confidence: placeholder
+      note: "규제지역 주담대 LTV 상한"
+    non_regulated:
+      value: 0.70
+      confidence: placeholder
+    first_home_bonus:
+      value: 0.10
+      confidence: placeholder
+      note: "생애최초 우대 가산분"
+
+  dsr:
+    limit:
+      value: 0.40
+      confidence: placeholder
+      note: "차주단위 DSR 상한"
+    stress_add_rate:
+      value: 0.015
+      confidence: placeholder
+      note: >
+        스트레스 DSR 가산금리. DSR 산정 시 실제 금리에 이 값을 더해 계산합니다.
+        단계별로 적용률이 달라지므로 반드시 확인 필요.
+    include_jeonse_loan_interest:
+      value: true
+      confidence: unverified
+      note: "기존 전세대출 이자를 DSR 에 포함하는지"
+    max_term_months_for_dsr:
+      value: 480
+      confidence: placeholder
+      note: "DSR 산정 시 인정되는 최장 만기 (실제 대출 만기와 다를 수 있음)"
+
+  mortgage:
+    default_term_months:
+      value: 360
+      confidence: unverified
+    default_rate:
+      value: 0.042
+      confidence: placeholder
+      note: "주담대 금리. market 데이터가 있으면 그쪽이 우선합니다."
+    cap_amount:
+      value: null
+      confidence: placeholder
+      note: "규제지역 주담대 한도 캡(있는 경우). null 이면 미적용."
+
+  jeonse_loan:
+    default_rate:
+      value: 0.038
+      confidence: placeholder
+    ltv_of_deposit:
+      value: 0.80
+      confidence: placeholder
+      note: "전세보증금 대비 전세대출 한도 비율"
+
+  # 자녀 있는 무주택 가구에서 판을 뒤집을 수 있는 유일한 정책 변수.
+  # 리뷰에서 지적한 대로 서울시 주거비 지원(2년 720만원)보다 훨씬 큽니다.
+  special:
+    newborn_purchase:
+      enabled:
+        value: false
+        confidence: placeholder
+        note: "신생아 특례 구입자금(디딤돌) 자격 여부. 확인 후 true 로."
+      rate:
+        value: 0.025
+        confidence: placeholder
+      max_amount:
+        value: 500000000
+        confidence: placeholder
+      income_cap:
+        value: 200000000
+        confidence: placeholder
+      house_price_cap:
+        value: 900000000
+        confidence: placeholder
+      child_age_months_max:
+        value: 24
+        confidence: placeholder
+        note: "출산 후 몇 개월 이내 신청 가능한지"
+    newborn_jeonse:
+      enabled:
+        value: false
+        confidence: placeholder
+        note: "신생아 특례 전세자금(버팀목) 자격 여부"
+      rate:
+        value: 0.023
+        confidence: placeholder
+      max_amount:
+        value: 300000000
+        confidence: placeholder
+
+# ----------------------------------------------------------------- 세금
+tax:
+  acquisition:
+    # 취득세는 가액구간/주택수/면적에 따라 달라집니다. 구간표로 관리.
+    brackets:
+      value:
+        - { upto: 600000000, rate: 0.011 }
+        - { upto: 900000000, rate: 0.022 }
+        - { upto: null,      rate: 0.033 }
+      confidence: placeholder
+      note: >
+        [가액상한, 실효세율(지방교육세·농특세 포함)] 구간표.
+        6~9억 구간은 실제로 선형보간 산식이 적용되므로 정밀히 하려면 산식을 넣으세요.
+
+  property:
+    annual_rate_of_value:
+      value: 0.0025
+      confidence: placeholder
+      note: "재산세+지방교육세 실효세율(시가 대비 근사). 공시가·공정시장가액비율 반영 필요."
+    comprehensive_threshold:
+      value: 1200000000
+      confidence: placeholder
+      note: "종부세 과세기준(1세대1주택 공시가). 초과분에만 부과."
+    comprehensive_rate:
+      value: 0.006
+      confidence: placeholder
+
+  capital_gains:
+    primary_residence_exempt:
+      value: true
+      confidence: unverified
+      note: "1세대1주택 비과세 적용 여부"
+    exempt_price_cap:
+      value: 1200000000
+      confidence: placeholder
+      note: "고가주택 기준. 초과분 양도차익에 대해서만 과세."
+    hold_months_required:
+      value: 24
+      confidence: placeholder
+    live_months_required:
+      value: 24
+      confidence: placeholder
+      note: "조정대상지역 등에서 거주요건이 추가로 붙는 경우"
+    rate_above_cap:
+      value: 0.20
+      confidence: placeholder
+      note: "비과세 한도 초과분 실효세율(장특공제 후 근사)"
+    long_hold_deduction_per_year:
+      value: 0.04
+      confidence: placeholder
+      note: "장기보유특별공제 연간 공제율"
+    long_hold_deduction_max:
+      value: 0.80
+      confidence: placeholder
+
+# ----------------------------------------------------------------- 거래비용
+transaction:
+  brokerage_rate_sale:
+    value: 0.005
+    confidence: placeholder
+    note: "매매 중개보수 요율(상한). 실제는 구간별 요율표."
+  brokerage_rate_lease:
+    value: 0.004
+    confidence: placeholder
+  legal_fee:
+    value: 1500000
+    confidence: placeholder
+    note: "법무사 등기비용"
+  moving_cost:
+    value: 3000000
+    confidence: placeholder
+  interior_cost:
+    value: 20000000
+    confidence: placeholder
+    note: "매수 시 초기 인테리어. 0 으로 두면 미반영."
+
+# ----------------------------------------------------------------- 정책 현금흐름
+# 규모는 작지만 tie-breaker 로는 유효합니다.
+subsidy:
+  seoul_birth_housing:
+    enabled:
+      value: false
+      confidence: placeholder
+      note: "서울시 자녀출산 무주택가구 주거비 지원 대상 여부. 요건 확인 후 true."
+    monthly_amount:
+      value: 300000
+      confidence: placeholder
+    max_months:
+      value: 24
+      confidence: placeholder
+    requires_no_home:
+      value: true
+      confidence: unverified
+      note: "무주택 요건. true 면 매수 옵션에서는 지급이 중단됩니다."
+
+  monthly_rent_tax_credit:
+    enabled:
+      value: false
+      confidence: placeholder
+      note: "월세 세액공제. 반전세/월세 옵션의 실질 부담을 낮춥니다."
+    credit_rate:
+      value: 0.15
+      confidence: placeholder
+    annual_rent_cap:
+      value: 10000000
+      confidence: placeholder
+
+# ----------------------------------------------------------------- 보증금 보호
+deposit_protection:
+  hug_guarantee_fee_rate:
+    value: 0.00128
+    confidence: placeholder
+    note: "전세보증금반환보증 연 보증료율. 가입 시 비용으로 계상됩니다."
+  priority_repayment_cap:
+    value: 55000000
+    confidence: placeholder
+    note: "최우선변제 소액임차인 보증금 중 일정액. 지역별로 다릅니다."
+
+# ----------------------------------------------------------------- 청약
+cheongyak:
+  special_supply_requires_no_home:
+    value: true
+    confidence: unverified
+    note: >
+      특별공급(신혼부부/생애최초/다자녀)은 무주택 요건이 있습니다.
+      => 매수하는 순간 이 옵션이 소멸합니다. decision 엔진이 이를 옵션가치로 계산합니다.
+  estimated_win_probability_per_year:
+    value: 0.03
+    confidence: placeholder
+    note: >
+      연간 당첨 확률 추정치. 지역/유형/가점에 따라 천차만별입니다.
+      이 값은 본인 가점과 목표 단지 경쟁률로 직접 추정해서 넣으세요.
+  estimated_discount_to_market:
+    value: 0.15
+    confidence: placeholder
+    note: "분양가가 시세 대비 저렴한 정도. 당첨 시 즉시 이익의 크기."
