@@ -1,0 +1,40 @@
+# 육아비 계단 곡선 + 생활비 구조
+# =============================================================================
+# 아이 나이에 따라 육아비는 부드럽게 늘지 않고 **계단식으로 점프**합니다.
+# 범용 가계부 앱이 안 해주는 부분이고, 2년 뒤 자산을 결정하는 큰 변수입니다.
+#
+# 아래 배수는 budget.childcare_monthly (현재 육아비) 를 1.0 으로 놓은 상대값입니다.
+# 본인 지역/보육형태 실제 지출로 반드시 교체하세요.
+# =============================================================================
+
+_defaults:
+  effective_from: 2020-01-01
+  confidence: placeholder
+
+childcare:
+  # [시작 개월수, 종료 개월수, 현재 육아비 대비 배수, 라벨]
+  stages:
+    value:
+      - { from_months: 0,   to_months: 12,  multiplier: 1.30, label: "영아 - 조리/의료/용품" }
+      - { from_months: 12,  to_months: 36,  multiplier: 1.00, label: "어린이집" }
+      - { from_months: 36,  to_months: 60,  multiplier: 1.15, label: "유치원" }
+      - { from_months: 60,  to_months: 84,  multiplier: 1.35, label: "유치원 + 사교육 시작" }
+      - { from_months: 84,  to_months: 156, multiplier: 2.10, label: "초등 - 사교육 급증 구간" }
+      - { from_months: 156, to_months: 216, multiplier: 3.00, label: "중고등 - 사교육 정점" }
+    confidence: placeholder
+    note: >
+      가장 중요한 계단은 초등 입학(84개월) 구간입니다. 여기서 2배 이상 뜁니다.
+      전세 만기 의사결정이 이 계단 직전이라면 주거비 여력을 그만큼 낮게 잡아야 합니다.
+
+  second_child_cost_ratio:
+    value: 0.65
+    confidence: placeholder
+    note: "둘째 육아비는 첫째 대비 비율(용품 물려쓰기 등 반영)"
+
+  # 초등 입학보다 중학교 배정이 학군의 진짜 변곡점입니다.
+  # 초1에 맞춰 이사하면 6년 뒤 또 이사해야 할 수 있습니다.
+  school_regime_months:
+    value:
+      elementary: 84
+      middle: 156
+    confidence: unverified

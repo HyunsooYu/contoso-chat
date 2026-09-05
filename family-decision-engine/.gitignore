@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+runs/*
+!runs/.gitkeep
+config/family_state.yaml
+market.db
