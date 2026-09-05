@@ -1,0 +1,66 @@
+# 데이터 수집기 설정
+# =============================================================================
+# 엔드포인트와 통계코드는 **변경될 수 있습니다**. 정책 룰셋과 같은 이유로
+# 코드가 아니라 여기 데이터로 둡니다. 동작하지 않으면 이 파일을 먼저 고치세요.
+#
+# API 키는 여기 넣지 말고 환경변수로 주세요:
+#   export ECOS_API_KEY=...      (한국은행 ECOS)
+#   export DATA_GO_KR_KEY=...    (공공데이터포털 - 국토부 실거래가)
+#
+# 키가 없으면 수집기는 조용히 건너뛰고, 시스템은 수동 입력값으로 계속 동작합니다.
+# =============================================================================
+
+ecos:
+  base_url: "https://ecos.bok.or.kr/api/StatisticSearch"
+  verify_note: "통계표 코드는 ECOS 통계코드검색에서 확인하세요. 아래는 예시입니다."
+  series:
+    - key: base_rate
+      label: "한국은행 기준금리"
+      stat_code: "722Y001"
+      cycle: "M"
+      item_code: "0101000"
+      confidence: unverified
+    - key: mortgage_rate
+      label: "예금은행 주택담보대출 금리(신규취급액)"
+      stat_code: "121Y006"
+      cycle: "M"
+      item_code: "BECBLA0301"
+      confidence: unverified
+    - key: deposit_rate
+      label: "예금은행 저축성수신 금리"
+      stat_code: "121Y002"
+      cycle: "M"
+      item_code: "BEABAA2"
+      confidence: unverified
+
+molit:
+  # 국토교통부 실거래가 (공공데이터포털)
+  base_url: "http://apis.data.go.kr/1613000"
+  verify_note: >
+    서비스명/오퍼레이션명이 개편될 수 있습니다. 공공데이터포털에서
+    '아파트 매매 실거래가', '아파트 전월세 실거래가' 를 검색해 확인하세요.
+  endpoints:
+    apt_trade: "RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade"
+    apt_rent: "RTMSDataSvcAptRent/getRTMSDataSvcAptRent"
+  regions:
+    # 추적할 법정동코드 앞 5자리(시군구). 후보지에 맞춰 바꾸세요.
+    - { code: "41135", label: "성남시 분당구" }
+    - { code: "11710", label: "서울 송파구" }
+    - { code: "41465", label: "경기 용인시 수지구" }
+
+cleaning:
+  # 리뷰 지적: 실거래가는 정제 없이 쓰면 최근 1개월 시세가 항상 왜곡됩니다.
+  reporting_lag_days: 30
+  exclude_cancelled: true          # 해제(취소) 거래 제외
+  exclude_direct_deals: true       # 직거래(특수관계 가능성) 제외
+  mad_outlier_threshold: 3.5       # 중위절대편차 기반 이상치 컷
+  min_deals_for_stat: 5            # 이보다 적으면 통계로 쓰지 않음
+
+manual:
+  # 입주물량은 공식 API가 없습니다. 민간 집계를 손으로 CSV에 넣거나,
+  # 인허가·착공 통계로 역산해야 합니다. 초안이 이걸 다른 지표와 같은 급으로
+  # 나열한 것은 낙관적이었습니다.
+  supply_csv: "data/supply.csv"
+  supply_note: >
+    형식: region_code,year_month,units
+    출처를 반드시 파일 주석으로 남기세요.

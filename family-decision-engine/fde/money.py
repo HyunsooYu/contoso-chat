@@ -191,6 +191,10 @@ def monthly_growth_factor(annual_rate: float) -> float:
 
 def fmt_krw(amount: float, unit: str = "auto") -> str:
     """사람이 읽는 금액. 기본은 억/만원 혼용."""
+    if amount != amount:            # NaN - 계산 불가를 숫자처럼 보이게 하지 않는다
+        return "-"
+    if amount in (float("inf"), float("-inf")):
+        return "무한"
     sign = "-" if amount < 0 else ""
     a = abs(amount)
     if unit == "man" or (unit == "auto" and a < EOK):

@@ -190,6 +190,28 @@ class DecisionResult:
         return p[1] if len(p) > 1 else None
 
     @property
+    def dominant_failure(self) -> str:
+        """통과 옵션이 없을 때, 무엇이 전부를 막았는가.
+
+        '전 옵션 탈락'은 이 시스템이 낼 수 있는 가장 중요한 출력이다.
+        어떤 주거 선택으로도 해결되지 않는 문제가 있다는 뜻이기 때문이다.
+        """
+        if self.passing or not self.evaluations:
+            return ""
+        counts: dict[str, int] = {}
+        for e in self.failing:
+            for g in e.failed_gates:
+                counts[g.name] = counts.get(g.name, 0) + 1
+        if not counts:
+            return ""
+        top, n = max(counts.items(), key=lambda kv: kv[1])
+        total = len(self.failing)
+        sample = next(
+            (g.detail for e in self.failing for g in e.failed_gates if g.name == top), ""
+        )
+        return f"{top} ({n}/{total} 옵션) - {sample}"
+
+    @property
     def margin(self) -> float:
         """1위와 2위의 원 단위 격차. 이게 작으면 결론이 불안정하다는 뜻."""
         b, r = self.best, self.runner_up
