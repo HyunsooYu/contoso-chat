@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 
 from fde.money import fmt_krw
-from fde.policy import load_policy
+from fde.policy import PolicyError, load_policy
 from fde.stateio import load_state
 
 
@@ -47,6 +47,7 @@ def run_backtest(
     prev_winner = None
     flips = 0
     rows = 0
+    gaps = 0
 
     for d in dates:
         as_of = dt.date.fromisoformat(d.strip())
@@ -60,8 +61,13 @@ def run_backtest(
             lines.append(f"  {d:<14}  (만기 이후 - 건너뜀)")
             continue
 
-        policy = load_policy(policy_path, as_of)
-        r = run_decision(state, policy)
+        try:
+            policy = load_policy(policy_path, as_of)
+            r = run_decision(state, policy)
+        except PolicyError as e:
+            lines.append(f"  {d:<14}{m:>7}개월  (정책 공백) {str(e)[:44]}")
+            gaps += 1
+            continue
         b = r.best
         winner = b.spec.name if b else "(전 옵션 탈락)"
         flag = ""
@@ -75,6 +81,12 @@ def run_backtest(
         )
 
     lines.append("-" * 78)
+    if gaps:
+        lines.append(
+            f"\n  {gaps}개 시점은 그때 유효한 정책 룰이 없어 재현하지 못했습니다.\n"
+            f"  진짜 백테스트를 하려면 과거 시점의 LTV/DSR/세율을 effective_from 과\n"
+            f"  함께 config/policy/ 에 추가해야 합니다. 이게 이 설계의 목적입니다."
+        )
     if rows > 1:
         rate = flips / (rows - 1)
         lines.append(

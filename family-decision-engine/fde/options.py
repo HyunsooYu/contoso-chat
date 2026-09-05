@@ -128,7 +128,6 @@ def _pre_decision_months(ctx: BuildContext) -> list[HousingMonth]:
     jl = next((d for d in s.debts if d.is_jeonse_loan), None)
 
     fee = guarantee_fee_monthly(h.deposit, p) if h.risk.hug_guaranteed else 0.0
-    sub = _subsidy_monthly(ctx, owns_home=False)
 
     for t in range(min(ctx.decision_month, ctx.horizon)):
         interest = (jl.balance * (jl.annual_rate + ctx.path.rate_delta[t]) / 12) if jl else 0.0
@@ -226,17 +225,23 @@ def build_lease(ctx: BuildContext, spec: OptionSpec) -> Schedule:
                 f"월세 {contract_rent:,.0f}"
             )
 
-        # 재계약 (2년마다) - 갱신권은 최초 1회만
+        # 재계약 (2년마다) - 갱신권은 최초 1회만 쓸 수 있다
         if t > T and (t - contract_start) % term == 0:
-            new_market = _market_jeonse_at(ctx, spec.candidate, t)
-            new_equiv = new_market
+            new_equiv = _market_jeonse_at(ctx, spec.candidate, t)
             new_deposit = new_equiv * spec.deposit_ratio
             delta = new_deposit - contract_deposit
-            m.deposit_delta += delta
+            m.deposit_delta += delta                 # 증액분 현금 유출(음수면 유입)
+
+            # 증액분의 일부를 전세대출로 조달한다면 그만큼 현금이 들어온다.
+            # 이 유입을 빠뜨리면 '현금도 내고 빚도 지는' 이중 계상이 된다.
+            new_cap = jeonse_loan_capacity(s, p, new_deposit).max_amount
+            new_balance = max(0.0, min(new_cap, balance + max(0.0, delta)))
+            m.deposit_delta -= new_balance - balance
+            balance = new_balance
+
             contract_deposit = new_deposit
             contract_rent = max(0.0, (new_equiv - new_deposit) * conv / 12.0)
             contract_start = t
-            balance = max(0.0, min(cap.max_amount, balance + max(0.0, delta)))
             fee = guarantee_fee_monthly(contract_deposit, p) if h.risk.hug_guaranteed else 0.0
             m.note = "재계약"
 

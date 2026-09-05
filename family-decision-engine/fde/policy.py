@@ -87,6 +87,18 @@ class PolicySet:
         if rule is None:
             if default is not None:
                 return default
+            if key in self._rules:
+                # 키는 있는데 그 시점에 유효하지 않다 - 백테스트에서 흔한 상황이다
+                spans = ", ".join(
+                    f"{r.effective_from}~{r.effective_to or '현재'}"
+                    for r in self._rules[key]
+                )
+                raise PolicyError(
+                    f"정책 키 {key!r} 는 있으나 {self.as_of} 시점에 유효한 룰이 "
+                    f"없습니다 (정의된 구간: {spans}). "
+                    f"과거 시점을 재현하려면 그 시점에 유효했던 룰을 "
+                    f"effective_from/effective_to 로 추가하세요."
+                )
             raise PolicyError(
                 f"정책 키 없음: {key!r} (as_of={self.as_of}). "
                 f"config/policy/*.yaml 에 추가하세요."
