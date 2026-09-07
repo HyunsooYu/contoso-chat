@@ -1,5 +1,7 @@
 # 저항실패 점수 전략 — 실행 패키지
 
+> **한 장 요약은 [`STRATEGY.md`](STRATEGY.md), 데이터 확보는 [`../DATA-SOURCES.md`](../DATA-SOURCES.md).**
+
 12부에서 명세한 가설 H1의 **돌아가는 구현**이다.
 
 > **H1**: 자산이 최근 고점 돌파에 반복 실패할수록, 이후 4주 횡단면 초과수익이 낮다.
@@ -150,3 +152,28 @@ git add config.py && git commit -m "pre-register H1 <지문>"
 **이것은 자산 형성의 주 엔진이 아니라, 제대로 하면 작은 엣지가 나올 수도 있는 공예다.**
 위치를 알고 하면 저축·소득이라는 본 엔진을 멈추지 않은 채 병행할 수 있다.
 자본이 손익분기(알파 3% 기준 약 10억)를 넘기 전까지, 같은 시간의 최고 용도는 여전히 소득 증대다.
+
+---
+
+## 생존편향 (14부)
+
+이 전략은 약세 종목을 **숏**한다. 폐지 종목은 대부분 숏 다리에 있으므로,
+생존자만 담긴 데이터는 숏 다리의 최대 수익원을 제거한다.
+
+```bash
+python3 fetch_krx.py --reason-report                  # 폐지 사유 매핑 확인
+python3 fetch_krx.py --out-dir data --start 2010-01-01
+python3 run.py audit --csv data/prices.csv --delistings data/delistings.csv
+python3 run.py delist-sens                            # 폐지수익 가정 민감도
+python3 check_null.py --reps 100                      # 귀무 오탐율
+```
+
+- `universe.py` — 폐지 시점에 폐지수익 1기를 주입한다. 이게 없으면 폐지 종목을
+  데이터에 넣어도 보유 포지션이 손익 없이 사라진다.
+- `backtest.run()` 은 **소멸 종목이 0개인 패널에 예외를 던지고 멈춘다.**
+- 폐지수익 가정 하나가 연수익 3.05%p·샤프 0.23을 만든다. 이 전략에서
+  **보수적인 쪽은 −100%가 아니라 0%** 다.
+- IC·손익 t값은 **Newey-West 보정**을 쓴다. 단순 t는 귀무 데이터에서
+  오탐율 21%(명목 5%의 4배)였고, 보정 후 6%로 내려왔다.
+
+세부는 [`../DATA-SOURCES.md`](../DATA-SOURCES.md).

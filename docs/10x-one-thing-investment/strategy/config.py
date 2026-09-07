@@ -38,6 +38,10 @@ class Config:
     rebalance_every_w: int = 1
     turnover_deadband: float = 0.25 # 목표비중 변화가 이보다 작으면 거래 생략
 
+    # ---- 생존편향 (13.7) ------------------------------------------------
+    require_delisting_data: bool = True   # 소멸 종목이 없는 패널은 백테스트 거부
+    delist_override: float | None = None  # 폐지수익을 한 값으로 덮음(민감도 분석용)
+
     # ---- 비용 -----------------------------------------------------------
     cost_bps_per_side: float = 15.0 # 수수료+세금+스프레드+슬리피지 (실측치로 교체)
     borrow_bps_annual: float = 200.0  # 숏 대차/펀딩 비용
@@ -55,7 +59,8 @@ class Config:
     notes: str = "H1: resistance-failure score, cross-sectionally neutral"
 
     def fingerprint(self) -> str:
-        d = {k: v for k, v in asdict(self).items() if k not in ("notes", "oos_start")}
+        d = {k: v for k, v in asdict(self).items()
+             if k not in ("notes", "oos_start", "delist_override")}
         return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()[:16]
 
     def describe(self) -> str:

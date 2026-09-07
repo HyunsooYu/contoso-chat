@@ -2,17 +2,35 @@
 """백테스트 엔진 — 신호 -> 비중 -> 비용차감 수익 -> 진단."""
 from __future__ import annotations
 import pandas as pd
-import signals, portfolio, costs, diagnostics
+import signals, portfolio, costs, diagnostics, universe
 
 
-def run(close: pd.DataFrame, cfg) -> dict:
+class SurvivorshipError(RuntimeError):
+    """소멸 종목이 없는 패널로 백테스트를 시도했을 때."""
+
+
+def run(close: pd.DataFrame, cfg, delistings: pd.DataFrame | None = None) -> dict:
     close = close.dropna(how="all")
+
+    audit = universe.audit(close, delistings)
+    if cfg.require_delisting_data and audit["biased"]:
+        raise SurvivorshipError(
+            "패널에 중도 소멸 종목이 0개다 — 생존자만 담긴 데이터로는 검증이 불가능하다. "
+            "상장폐지 종목을 포함한 데이터를 쓰거나, cfg.require_delisting_data=False 로 "
+            "명시적으로 무력화할 것(그 경우 결과는 과대평가임을 리포트에 남긴다).")
+
     # 유니버스: 최소 이력 요건
     valid = close.notna().cumsum() >= cfg.min_history_w
     close = close.where(valid)
 
     score = signals.resistance_failure_score(close, cfg)
     asset_ret = close.pct_change(fill_method=None)
+    if delistings is not None and len(delistings):
+        # 폐지 손익 주입 — 이것이 없으면 보유 중 폐지된 포지션이 손익 없이 사라진다
+        asset_ret = asset_ret.add(
+            universe.delisting_return_frame(close, delistings,
+                                            override=cfg.delist_override),
+            fill_value=0.0)
     fwd = signals.forward_return(close, cfg.holding_weeks)
 
     w = portfolio.build(score, asset_ret, cfg)
@@ -29,8 +47,10 @@ def run(close: pd.DataFrame, cfg) -> dict:
     ic = diagnostics.information_coefficient(score_eval, fwd_eval)
     qs = diagnostics.quantile_monotonicity(score_eval, fwd_eval)
     stats = diagnostics.perf_stats(net_eval, ppy)
+    if stats:   # 손익도 데드밴드로 비중이 유지되는 구간이 있어 자기상관을 갖는다
+        stats["t_stat"] = diagnostics.newey_west_t(net_eval, max(cfg.holding_weeks - 1, 1))
     return dict(score=score, weights=w, gross=gross, net=net, cost=cost_series,
-                ic=ic, quantiles=qs, stats=stats,
+                ic=ic, quantiles=qs, stats=stats, audit=audit,
                 turnover=costs.turnover(w).mean(),
                 checks=diagnostics.falsification_report(stats, ic, qs, cfg))
 
@@ -50,6 +70,11 @@ def report(res: dict, cfg, title: str = "") -> str:
                f"   샤프 {s['sharpe']:+.2f}")
     out.append(f"  최대낙폭 {s['max_drawdown']:.2%}   주간수익 t={s['t_stat']:+.2f}")
     out.append(f"  비용 차감액 연 {res['cost'].mean()*52:.2%}")
+    a = res["audit"]
+    out.append(f"  생존편향: 심볼 {a['n_total']}개 중 중도 소멸 {a['n_dead']}개 "
+               f"(연 {a['hazard']:.2%})"
+               + ("  [경고] 소멸 0개 — 결과는 과대평가" if a["biased"] else
+                  ("" if a["covered"] else "  [경고] 폐지수익 미선언 종목 존재")))
     out.append(f"  IC 평균 {res['ic'].mean():+.4f} (관측 {len(res['ic'])}주)")
     out.append("  분위별 전방수익: " + "  ".join(f"{k} {v:+.3%}" for k, v in res["quantiles"].items()))
     out.append("")
